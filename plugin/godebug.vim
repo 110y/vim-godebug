@@ -72,6 +72,28 @@ function! godebug#debugtest(bang, ...) abort
   return go#term#new(a:bang, ["dlv", "test", "--init=" . g:godebug_breakpoints_file])
 endfunction
 
+function! godebug#debugtestfunc(bang, ...) abort
+  call godebug#writeBreakpointsFile()
+
+  let test = search('func \(Test\|Example\)', 'bcnW')
+
+  if test == 0
+      echo 'vim-godebug: [test] no test found immediate to cursor'
+      return
+  end
+
+  let line = getline(test)
+  let name = split(split(line, ' ')[1], '(')[0]
+
+  let dir = expand('%:p:h')
+  let dlv = 'cd ' . dir . ' && dlv test --init=' . g:godebug_breakpoints_file . ' -- -test.run=' . "'^" . name . "$'"
+
+  edit '__go_delve__'
+  call termopen(dlv)
+  startinsert
+endfunction
+
 command! -nargs=* -bang GoToggleBreakpoint call godebug#toggleBreakpoint(expand('%:p'), line('.'), <f-args>)
 command! -nargs=* -bang GoDebug call godebug#debug(<bang>0, 0, <f-args>)
 command! -nargs=* -bang GoDebugTest call godebug#debugtest(<bang>0, 0, <f-args>)
+command! -nargs=* -bang GoDebugTestFunc call godebug#debugtestfunc(<bang>0, 0, <f-args>)
