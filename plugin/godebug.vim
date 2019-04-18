@@ -1,6 +1,9 @@
 " vim-godebug.vim - Go debugging for Vim
-" Maintainer:    Luca Guidi <https://lucaguidi.com>
 " Version:       0.1
+
+augroup godebug
+    autocmd!
+augroup END
 
 if !has('nvim')
   echom 'vim-godebug: vim is not yet supported, try it with neovim'
@@ -29,7 +32,7 @@ call mkdir(g:godebug_cache_path, 'p')
 " create a reasonably unique breakpoints file path per vim instance
 let g:godebug_breakpoints_file = g:godebug_cache_path . '/'. getpid() . localtime()
 
-autocmd VimLeave * call godebug#deleteBreakpointsFile()<cr>
+autocmd godebug VimLeave * call godebug#deleteBreakpointsFile()<cr>
 
 " Private functions {{{1
 function! godebug#toggleBreakpoint(file, line, ...) abort
@@ -50,6 +53,14 @@ function! godebug#toggleBreakpoint(file, line, ...) abort
     call remove(g:godebug_breakpoints, i)
     exe 'sign unplace '. a:line .' file=' . a:file
   endif
+endfunction
+
+function! godebug#clearBreakpoints() abort
+  for b in g:godebug_breakpoints
+      let point = matchlist(b, '\vbreak (.+):(\d+)')
+      exe 'sign unplace '. point[2] .' file=' . point[1]
+  endfor
+  let g:godebug_breakpoints = []
 endfunction
 
 function! godebug#writeBreakpointsFile(...) abort
@@ -88,13 +99,14 @@ function! godebug#debugtestfunc(bang, ...) abort
   let dir = expand('%:p:h')
   let dlv = 'cd ' . dir . ' && dlv test --init=' . g:godebug_breakpoints_file . ' -- -test.run=' . "'^" . name . "$'"
 
-  edit '--go_delve__'
+  edit '__go_delve__'
   call termopen(dlv)
   file debug
   startinsert
 endfunction
 
 command! -nargs=* -bang GoToggleBreakpoint call godebug#toggleBreakpoint(expand('%:p'), line('.'), <f-args>)
+command! -nargs=* -bang GoClearBreakpoints call godebug#clearBreakpoints()
 command! -nargs=* -bang GoDebug call godebug#debug(<bang>0, 0, <f-args>)
 command! -nargs=* -bang GoDebugTest call godebug#debugtest(<bang>0, 0, <f-args>)
 command! -nargs=* -bang GoDebugTestFunc call godebug#debugtestfunc(<bang>0, 0, <f-args>)
